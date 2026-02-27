@@ -3,6 +3,7 @@ import { verifyFixCommand } from './commands/verify-fix';
 import { verifyFromPRCommand } from './commands/verify-from-pr';
 import { setupPlaywrightCommand } from './commands/setup-playwright';
 import { initProjectCommand } from './commands/init-project';
+import { fixAndVerifyCommand } from './commands/fix-and-verify';
 import { getConfig, validateConfig } from './lib/config';
 import { generateTest } from './lib/test-generator';
 import { runTests } from './lib/test-runner';
@@ -31,6 +32,11 @@ export function activate(context: vscode.ExtensionContext): void {
   // Initialize project
   context.subscriptions.push(
     vscode.commands.registerCommand('bugFixAgent.initProject', initProjectCommand)
+  );
+
+  // Fix and verify (two-agent pipeline)
+  context.subscriptions.push(
+    vscode.commands.registerCommand('bugFixAgent.fixAndVerify', fixAndVerifyCommand)
   );
 
   // View results

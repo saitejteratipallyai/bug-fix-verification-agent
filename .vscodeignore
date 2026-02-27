@@ -12,3 +12,6 @@ tsconfig.json
 **/*.map
 **/*.ts
 !out/**/*.js
+demo/**
+PUSH-TO-GITHUB.sh
+BUGFIX-EXAMPLE.md

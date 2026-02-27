@@ -1,8 +1,8 @@
 {
   "name": "bug-fix-verification-agent",
   "displayName": "Bug Fix Verification Agent",
-  "description": "AI-powered bug fix verification with Playwright browser testing, video recording, and Claude Vision analysis",
-  "version": "1.0.0",
+  "description": "AI-powered bug fixing & verification — two agents that fix bugs and verify them with Playwright browser testing, video recording, and Claude Vision analysis",
+  "version": "2.0.0",
   "publisher": "saitejteratipallyai",
   "license": "MIT",
   "engines": {
@@ -21,6 +21,10 @@
     "verification",
     "video recording"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/saitejteratipallyai/bug-fix-verification-agent"
+  },
   "icon": "media/icon.png",
   "activationEvents": [
     "onCommand:bugFixAgent.verifyFix",
@@ -30,7 +34,8 @@
     "onCommand:bugFixAgent.generateTest",
     "onCommand:bugFixAgent.runTest",
     "onCommand:bugFixAgent.analyzeScreenshots",
-    "onCommand:bugFixAgent.initProject"
+    "onCommand:bugFixAgent.initProject",
+    "onCommand:bugFixAgent.fixAndVerify"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -82,6 +87,12 @@
         "title": "Initialize Project Config",
         "category": "Bug Fix Agent",
         "icon": "$(gear)"
+      },
+      {
+        "command": "bugFixAgent.fixAndVerify",
+        "title": "Fix Bug & Verify",
+        "category": "Bug Fix Agent",
+        "icon": "$(wand)"
       }
     ],
     "configuration": {
@@ -153,6 +164,12 @@
           "type": "string",
           "default": "test-results",
           "description": "Directory for test output (videos, screenshots, traces)"
+        },
+        "bugFixAgent.codebaseContextFile": {
+          "type": "string",
+          "default": "",
+          "description": "Path to codebase context markdown file (relative to workspace root). If empty, searches for codebase-context.md, test-context.md, or ARCHITECTURE.md.",
+          "markdownDescription": "Path to codebase context markdown file (relative to workspace root). If empty, searches for `codebase-context.md`, `test-context.md`, or `ARCHITECTURE.md`."
         }
       }
     },

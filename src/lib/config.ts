@@ -15,6 +15,7 @@ export interface AgentConfig {
   videoResolution: { width: number; height: number };
   outputDir: string;
   workspaceRoot: string;
+  codebaseContextFile: string;
 }
 
 export function getConfig(): AgentConfig {
@@ -38,6 +39,7 @@ export function getConfig(): AgentConfig {
     videoResolution: config.get<{ width: number; height: number }>('videoResolution') || { width: 1280, height: 720 },
     outputDir: config.get<string>('outputDir') || 'test-results',
     workspaceRoot,
+    codebaseContextFile: config.get<string>('codebaseContextFile') || '',
   };
 }
 
