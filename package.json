@@ -1,0 +1,221 @@
+{
+  "name": "bug-fix-verification-agent",
+  "displayName": "Bug Fix Verification Agent",
+  "description": "AI-powered bug fix verification with Playwright browser testing, video recording, and Claude Vision analysis",
+  "version": "1.0.0",
+  "publisher": "bug-fix-agent",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Testing",
+    "Other"
+  ],
+  "keywords": [
+    "bug fix",
+    "playwright",
+    "ai testing",
+    "visual testing",
+    "claude",
+    "verification",
+    "video recording"
+  ],
+  "icon": "media/icon.png",
+  "activationEvents": [
+    "onCommand:bugFixAgent.verifyFix",
+    "onCommand:bugFixAgent.verifyFromPR",
+    "onCommand:bugFixAgent.setupPlaywright",
+    "onCommand:bugFixAgent.viewResults",
+    "onCommand:bugFixAgent.generateTest",
+    "onCommand:bugFixAgent.runTest",
+    "onCommand:bugFixAgent.analyzeScreenshots",
+    "onCommand:bugFixAgent.initProject"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "bugFixAgent.verifyFix",
+        "title": "Verify Bug Fix",
+        "category": "Bug Fix Agent",
+        "icon": "$(bug)"
+      },
+      {
+        "command": "bugFixAgent.verifyFromPR",
+        "title": "Verify Bug Fix from PR",
+        "category": "Bug Fix Agent",
+        "icon": "$(git-pull-request)"
+      },
+      {
+        "command": "bugFixAgent.setupPlaywright",
+        "title": "Setup Playwright",
+        "category": "Bug Fix Agent",
+        "icon": "$(tools)"
+      },
+      {
+        "command": "bugFixAgent.viewResults",
+        "title": "View Verification Results",
+        "category": "Bug Fix Agent",
+        "icon": "$(eye)"
+      },
+      {
+        "command": "bugFixAgent.generateTest",
+        "title": "Generate Test Only",
+        "category": "Bug Fix Agent",
+        "icon": "$(file-code)"
+      },
+      {
+        "command": "bugFixAgent.runTest",
+        "title": "Run Generated Tests",
+        "category": "Bug Fix Agent",
+        "icon": "$(play)"
+      },
+      {
+        "command": "bugFixAgent.analyzeScreenshots",
+        "title": "Analyze Screenshots with AI",
+        "category": "Bug Fix Agent",
+        "icon": "$(eye)"
+      },
+      {
+        "command": "bugFixAgent.initProject",
+        "title": "Initialize Project Config",
+        "category": "Bug Fix Agent",
+        "icon": "$(gear)"
+      }
+    ],
+    "configuration": {
+      "title": "Bug Fix Verification Agent",
+      "properties": {
+        "bugFixAgent.anthropicApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Anthropic API key for Claude. Can also be set via ANTHROPIC_API_KEY env variable.",
+          "markdownDescription": "Anthropic API key for Claude. Can also be set via `ANTHROPIC_API_KEY` env variable."
+        },
+        "bugFixAgent.baseUrl": {
+          "type": "string",
+          "default": "http://localhost:3000",
+          "description": "Base URL of the dev server"
+        },
+        "bugFixAgent.devServerCommand": {
+          "type": "string",
+          "default": "npm run dev",
+          "description": "Command to start the dev server"
+        },
+        "bugFixAgent.devServerPort": {
+          "type": "number",
+          "default": 3000,
+          "description": "Port the dev server runs on"
+        },
+        "bugFixAgent.browser": {
+          "type": "string",
+          "enum": ["chromium", "firefox", "webkit"],
+          "default": "chromium",
+          "description": "Browser to use for testing"
+        },
+        "bugFixAgent.headless": {
+          "type": "boolean",
+          "default": true,
+          "description": "Run browser in headless mode"
+        },
+        "bugFixAgent.maxRetries": {
+          "type": "number",
+          "default": 3,
+          "description": "Maximum self-healing retry attempts for failed tests"
+        },
+        "bugFixAgent.timeout": {
+          "type": "number",
+          "default": 30000,
+          "description": "Timeout for each test in milliseconds"
+        },
+        "bugFixAgent.claudeModel": {
+          "type": "string",
+          "enum": ["claude-sonnet-4-5-20250929", "claude-opus-4-6", "claude-haiku-4-5-20251001"],
+          "default": "claude-sonnet-4-5-20250929",
+          "description": "Claude model to use for test generation"
+        },
+        "bugFixAgent.enableVisualAnalysis": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable Claude Vision analysis of screenshots"
+        },
+        "bugFixAgent.videoResolution": {
+          "type": "object",
+          "default": { "width": 1280, "height": 720 },
+          "description": "Video recording resolution",
+          "properties": {
+            "width": { "type": "number" },
+            "height": { "type": "number" }
+          }
+        },
+        "bugFixAgent.outputDir": {
+          "type": "string",
+          "default": "test-results",
+          "description": "Directory for test output (videos, screenshots, traces)"
+        }
+      }
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "bugFixAgent",
+          "title": "Bug Fix Agent",
+          "icon": "media/sidebar-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "bugFixAgent": [
+        {
+          "id": "bugFixAgent.history",
+          "name": "Verification History"
+        },
+        {
+          "id": "bugFixAgent.currentRun",
+          "name": "Current Run"
+        }
+      ]
+    },
+    "menus": {
+      "editor/context": [
+        {
+          "command": "bugFixAgent.verifyFix",
+          "group": "bugFixAgent",
+          "when": "editorHasSelection"
+        }
+      ],
+      "scm/title": [
+        {
+          "command": "bugFixAgent.verifyFix",
+          "group": "navigation"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js",
+    "package": "vsce package",
+    "publish": "vsce publish",
+    "verify-fix": "ts-node scripts/verify.ts"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.48.0",
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "eslint": "^8.56.0",
+    "typescript": "^5.3.0",
+    "@vscode/vsce": "^2.22.0"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.0",
+    "wait-on": "^7.2.0",
+    "tree-kill": "^1.2.2"
+  }
+}

@@ -1,0 +1,12 @@
+out/
+node_modules/
+.vscode-test/
+test-results/
+tests/generated/
+scripts/*.js
+scripts/*.d.ts
+scripts/*.js.map
+scripts/*.d.ts.map
+*.vsix
+.env
+.DS_Store
