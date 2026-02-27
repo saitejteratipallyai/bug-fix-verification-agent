@@ -3,7 +3,7 @@
   "displayName": "Bug Fix Verification Agent",
   "description": "AI-powered bug fix verification with Playwright browser testing, video recording, and Claude Vision analysis",
   "version": "1.0.0",
-  "publisher": "bug-fix-agent",
+  "publisher": "saitejteratipallyai",
   "license": "MIT",
   "engines": {
     "vscode": "^1.85.0"
