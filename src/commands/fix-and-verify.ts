@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { getConfig, validateConfig } from '../lib/config';
 import { runFixAndVerifyPipeline, FixAndVerifyResult } from '../lib/fix-and-verify-pipeline';
+import { LivePanel } from '../webview/live-panel';
 import { ResultsPanel } from '../webview/results-panel';
 
 export async function fixAndVerifyCommand(): Promise<void> {
@@ -69,126 +70,175 @@ export async function fixAndVerifyCommand(): Promise<void> {
     return;
   }
 
-  // Run the fix-and-verify pipeline
-  await vscode.window.withProgress(
-    {
-      location: vscode.ProgressLocation.Notification,
-      title: '🤖 Bug Fix Agent: Fix & Verify',
-      cancellable: false,
-    },
-    async (progress) => {
-      try {
-        const result = await runFixAndVerifyPipeline(
-          config,
-          {
-            bugDescription,
-            hintFiles,
-            startServer: serverOption.value,
-          },
-          (message, increment) => {
-            progress.report({ message, increment });
-          }
-        );
+  // Open live panel
+  const livePanel = LivePanel.createOrShow(bugDescription);
 
-        showFixAndVerifyResults(result, bugDescription);
-      } catch (error: any) {
-        vscode.window.showErrorMessage(`Bug Fix Agent failed: ${error.message}`);
+  // Initialize steps
+  livePanel.addStep({ id: 'context', label: 'Reading codebase context', status: 'pending' });
+  livePanel.addStep({ id: 'files', label: 'Identifying relevant files', status: 'pending' });
+  livePanel.addStep({ id: 'fix', label: 'Generating fix with Claude AI', status: 'pending' });
+  livePanel.addStep({ id: 'apply', label: 'Applying fix to source files', status: 'pending' });
+  livePanel.addStep({ id: 'test-gen', label: 'Generating Playwright test', status: 'pending' });
+  livePanel.addStep({ id: 'test-run', label: 'Running browser test', status: 'pending' });
+  livePanel.addStep({ id: 'visual', label: 'Analyzing screenshots with AI', status: 'pending' });
+
+  const stepTimers: Record<string, number> = {};
+
+  function startStep(id: string) {
+    stepTimers[id] = Date.now();
+    livePanel.updateStep(id, { status: 'running' });
+  }
+
+  function completeStep(id: string, detail?: string, code?: string) {
+    const duration = stepTimers[id] ? Date.now() - stepTimers[id] : 0;
+    livePanel.updateStep(id, { status: 'success', detail, code, duration });
+  }
+
+  function failStep(id: string, detail?: string) {
+    const duration = stepTimers[id] ? Date.now() - stepTimers[id] : 0;
+    livePanel.updateStep(id, { status: 'error', detail, duration });
+  }
+
+  // Run the pipeline with live updates
+  try {
+    const result = await runFixAndVerifyPipeline(
+      config,
+      {
+        bugDescription,
+        hintFiles,
+        startServer: serverOption.value,
+      },
+      (message, _increment) => {
+        // Parse progress messages to update steps
+        if (message.includes('Reading codebase context')) {
+          startStep('context');
+        } else if (message.includes('Found context:') || message.includes('context file found')) {
+          const detail = message.includes('Found') ? message : 'No context file found — using file tree only';
+          completeStep('context', detail);
+        } else if (message.includes('No codebase context')) {
+          completeStep('context', 'No context file found — using file tree only');
+        } else if (message.includes('Analyzing which files')) {
+          startStep('files');
+        } else if (message.includes('Identified')) {
+          completeStep('files', message);
+        } else if (message.includes('Generating fix')) {
+          startStep('fix');
+        } else if (message.includes('Fix generated:')) {
+          completeStep('fix', message);
+        } else if (message.includes('Fix generation failed')) {
+          failStep('fix', message);
+        } else if (message.includes('Applying fix')) {
+          startStep('apply');
+        } else if (message.includes('Running verification')) {
+          completeStep('apply', 'Fix written to disk with backup');
+          startStep('test-gen');
+        } else if (message.includes('Generating test') || message.includes('Test generated')) {
+          if (message.includes('Test generated')) {
+            completeStep('test-gen', message);
+            startStep('test-run');
+          }
+        } else if (message.includes('Running test')) {
+          startStep('test-run');
+        } else if (message.includes('Test passed')) {
+          completeStep('test-run', 'All assertions passed in real Chromium browser');
+        } else if (message.includes('Test failed')) {
+          failStep('test-run', message);
+        } else if (message.includes('Analyzing screenshots') || message.includes('Visual analysis')) {
+          if (message.includes('Analyzing')) {
+            startStep('visual');
+          } else if (message.includes('complete')) {
+            completeStep('visual', 'Screenshots analyzed with Claude Vision');
+          } else if (message.includes('failed')) {
+            failStep('visual', message);
+          }
+        } else if (message.includes('Self-healing') || message.includes('Rolling back')) {
+          // On retry, reset relevant steps
+          livePanel.updateStep('fix', { status: 'error', detail: 'Fix attempt failed — retrying with different approach' });
+          livePanel.addStep({ id: 'retry', label: `Self-healing: Retrying with error context`, status: 'running' });
+        } else if (message.includes('Verification complete')) {
+          completeStep('visual', message);
+        }
       }
+    );
+
+    // Show final result
+    if (result.succeeded && result.finalFix) {
+      // Update any remaining pending steps
+      for (const step of ['context', 'files', 'fix', 'apply', 'test-gen', 'test-run']) {
+        const s = (livePanel as any)._steps?.find((x: any) => x.id === step);
+        if (s && s.status === 'pending') {
+          livePanel.updateStep(step, { status: 'success' });
+        }
+      }
+
+      // Show diff in the panel
+      const diffCode = result.finalFix.changes
+        .map(c => `── ${c.relativePath} ──\n${c.diff}`)
+        .join('\n\n');
+
+      livePanel.addStep({
+        id: 'result',
+        label: `Fix applied: ${result.finalFix.approach}`,
+        status: 'success',
+        detail: result.finalFix.explanation,
+        code: diffCode,
+      });
+
+      // Add artifacts step
+      if (result.finalVerification) {
+        const artifacts = [
+          ...result.finalVerification.testResult.videos.map(v => `📹 ${v.split('/').pop()}`),
+          ...result.finalVerification.testResult.screenshots.map(s => `📸 ${s.split('/').pop()}`),
+        ].join('\n');
+
+        if (artifacts) {
+          livePanel.addStep({
+            id: 'artifacts',
+            label: 'Artifacts collected',
+            status: 'success',
+            detail: artifacts,
+          });
+        }
+      }
+
+      livePanel.setAllComplete(true);
+
+      // Also show notification
+      vscode.window.showInformationMessage(
+        `✅ Bug fixed & verified! ${result.finalFix.changes.length} file(s) changed.`,
+        'View Changes',
+        'View Verification'
+      ).then(async (choice) => {
+        if (choice === 'View Changes') {
+          for (const change of result.finalFix!.changes) {
+            const uri = vscode.Uri.file(change.filePath);
+            await vscode.window.showTextDocument(uri, { preview: false });
+          }
+        } else if (choice === 'View Verification' && result.finalVerification) {
+          const panel = ResultsPanel.createOrShow();
+          panel.updateResults(result.finalVerification, bugDescription);
+        }
+      });
+    } else {
+      livePanel.setAllComplete(false);
+
+      vscode.window.showWarningMessage(
+        `❌ Bug fix failed after ${result.attempts.length} attempt(s).`,
+        'Retry'
+      ).then(choice => {
+        if (choice === 'Retry') {
+          vscode.commands.executeCommand('bugFixAgent.fixAndVerify');
+        }
+      });
     }
-  );
-}
-
-function showFixAndVerifyResults(
-  result: FixAndVerifyResult,
-  bugDescription: string
-): void {
-  if (result.succeeded && result.finalFix) {
-    const fileCount = result.finalFix.changes.length;
-    const attemptCount = result.attempts.length;
-
-    vscode.window.showInformationMessage(
-      `✅ Bug fixed & verified! ${fileCount} file(s) changed in ${attemptCount} attempt(s).`,
-      'View Changes',
-      'View Verification'
-    ).then(async (choice) => {
-      if (choice === 'View Changes') {
-        // Show diff in output channel
-        const channel = vscode.window.createOutputChannel('Bug Fix Agent — Changes');
-        channel.clear();
-        channel.appendLine('═══ Bug Fix Agent: Applied Changes ═══');
-        channel.appendLine(`Bug: ${bugDescription}`);
-        channel.appendLine(`Approach: ${result.finalFix!.approach}`);
-        channel.appendLine(`Explanation: ${result.finalFix!.explanation}`);
-        channel.appendLine(`Attempts: ${attemptCount}`);
-        channel.appendLine('');
-
-        for (const change of result.finalFix!.changes) {
-          channel.appendLine(`── ${change.relativePath} ──`);
-          channel.appendLine(change.diff);
-          channel.appendLine('');
-        }
-        channel.show();
-
-        // Also open the changed files in editor
-        for (const change of result.finalFix!.changes) {
-          const uri = vscode.Uri.file(change.filePath);
-          await vscode.window.showTextDocument(uri, { preview: false });
-        }
-      } else if (choice === 'View Verification' && result.finalVerification) {
-        const panel = ResultsPanel.createOrShow();
-        panel.updateResults(result.finalVerification, bugDescription);
-      }
+  } catch (error: any) {
+    livePanel.addStep({
+      id: 'error',
+      label: 'Pipeline error',
+      status: 'error',
+      detail: error.message,
     });
-  } else {
-    // Show all attempted approaches
-    vscode.window.showWarningMessage(
-      `❌ Bug fix failed after ${result.attempts.length} attempt(s).`,
-      'View Attempts',
-      'Retry'
-    ).then(choice => {
-      if (choice === 'View Attempts') {
-        const channel = vscode.window.createOutputChannel('Bug Fix Agent — Attempts');
-        channel.clear();
-        channel.appendLine('═══ Bug Fix Agent: All Attempted Fixes ═══');
-        channel.appendLine(`Bug: ${bugDescription}`);
-        channel.appendLine(`Total attempts: ${result.attempts.length}`);
-        channel.appendLine('');
-
-        for (const attempt of result.attempts) {
-          channel.appendLine(`━━━ Attempt ${attempt.attemptNumber} ━━━`);
-          channel.appendLine(`Approach: ${attempt.fix.approach}`);
-          channel.appendLine(`Explanation: ${attempt.fix.explanation}`);
-
-          if (attempt.fix.changes.length > 0) {
-            channel.appendLine('');
-            channel.appendLine('Changes:');
-            for (const change of attempt.fix.changes) {
-              channel.appendLine(`  ${change.relativePath}`);
-              channel.appendLine(change.diff);
-            }
-          }
-
-          if (attempt.error) {
-            channel.appendLine('');
-            channel.appendLine(`Error: ${attempt.error}`);
-          }
-
-          if (attempt.verification) {
-            channel.appendLine('');
-            channel.appendLine(
-              `Verification: ${attempt.verification.overallPassed ? '✅ PASSED' : '❌ FAILED'}`
-            );
-            if (attempt.verification.testResult?.errorMessage) {
-              channel.appendLine(`Test Error: ${attempt.verification.testResult.errorMessage}`);
-            }
-          }
-
-          channel.appendLine('');
-        }
-        channel.show();
-      } else if (choice === 'Retry') {
-        vscode.commands.executeCommand('bugFixAgent.fixAndVerify');
-      }
-    });
+    livePanel.setAllComplete(false);
+    vscode.window.showErrorMessage(`Bug Fix Agent failed: ${error.message}`);
   }
 }

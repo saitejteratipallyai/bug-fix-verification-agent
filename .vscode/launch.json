@@ -14,6 +14,22 @@
       "preLaunchTask": "${defaultBuildTask}"
     },
     {
+      "name": "Run Extension (Test React App)",
+      "type": "extensionHost",
+      "request": "launch",
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}",
+        "/Users/saitejteratipally/Desktop/extesion/test-react-app"
+      ],
+      "outFiles": [
+        "${workspaceFolder}/out/**/*.js"
+      ],
+      "preLaunchTask": "${defaultBuildTask}",
+      "env": {
+        "ANTHROPIC_API_KEY": "${env:ANTHROPIC_API_KEY}"
+      }
+    },
+    {
       "name": "Extension Tests",
       "type": "extensionHost",
       "request": "launch",

@@ -27,15 +27,7 @@
   },
   "icon": "media/icon.png",
   "activationEvents": [
-    "onCommand:bugFixAgent.verifyFix",
-    "onCommand:bugFixAgent.verifyFromPR",
-    "onCommand:bugFixAgent.setupPlaywright",
-    "onCommand:bugFixAgent.viewResults",
-    "onCommand:bugFixAgent.generateTest",
-    "onCommand:bugFixAgent.runTest",
-    "onCommand:bugFixAgent.analyzeScreenshots",
-    "onCommand:bugFixAgent.initProject",
-    "onCommand:bugFixAgent.fixAndVerify"
+    "onStartupFinished"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -173,39 +165,12 @@
         }
       }
     },
-    "viewsContainers": {
-      "activitybar": [
-        {
-          "id": "bugFixAgent",
-          "title": "Bug Fix Agent",
-          "icon": "media/sidebar-icon.svg"
-        }
-      ]
-    },
-    "views": {
-      "bugFixAgent": [
-        {
-          "id": "bugFixAgent.history",
-          "name": "Verification History"
-        },
-        {
-          "id": "bugFixAgent.currentRun",
-          "name": "Current Run"
-        }
-      ]
-    },
     "menus": {
       "editor/context": [
         {
           "command": "bugFixAgent.verifyFix",
           "group": "bugFixAgent",
           "when": "editorHasSelection"
-        }
-      ],
-      "scm/title": [
-        {
-          "command": "bugFixAgent.verifyFix",
-          "group": "navigation"
         }
       ]
     }
