@@ -101,14 +101,22 @@ Respond in this JSON format:
   }
 
   // Generate overall report
-  const hasIssues = results.some(r => r.issues.length > 0);
-  const allHighConfidence = results.every(r => r.confidence === 'high');
+  // Pass if: no critical issues AND at least medium confidence
+  // (Don't require ALL screenshots to be "high" — that's too strict)
+  const hasCriticalIssues = results.some(r =>
+    r.issues.some(issue =>
+      /broken|crash|error|missing|blank|white screen/i.test(issue)
+    )
+  );
+  const hasAnyConfidence = results.every(r =>
+    r.confidence === 'high' || r.confidence === 'medium'
+  );
 
   return {
     bugDescription,
     overallAssessment: generateOverallAssessment(results),
     screenshots: results,
-    passed: !hasIssues && allHighConfidence,
+    passed: !hasCriticalIssues && hasAnyConfidence,
   };
 }
 

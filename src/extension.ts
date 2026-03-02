@@ -12,7 +12,7 @@ import { getChangedFiles } from './lib/github-integration';
 import { ResultsPanel } from './webview/results-panel';
 
 export function activate(context: vscode.ExtensionContext): void {
-  console.log('Bug Fix Verification Agent is active');
+  console.log('Bug Fix Verification Agent — activating...');
 
   // Main verification command
   context.subscriptions.push(
@@ -166,10 +166,12 @@ export function activate(context: vscode.ExtensionContext): void {
     100
   );
   statusBarItem.text = '$(bug) Bug Fix Agent';
-  statusBarItem.command = 'bugFixAgent.verifyFix';
-  statusBarItem.tooltip = 'Run Bug Fix Verification';
+  statusBarItem.command = 'bugFixAgent.fixAndVerify';
+  statusBarItem.tooltip = 'Fix Bug & Verify';
   statusBarItem.show();
   context.subscriptions.push(statusBarItem);
+
+  console.log('Bug Fix Verification Agent — activated successfully!');
 }
 
 export function deactivate(): void {
