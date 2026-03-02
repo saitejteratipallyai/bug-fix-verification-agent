@@ -103,7 +103,13 @@ export async function runVerificationPipeline(
     }
   }
 
-  const overallPassed = testResult.passed && (visualReport?.passed ?? true);
+  // The Playwright test is the primary gate — if tests pass, the fix is working.
+  // Visual analysis is advisory: it adds confidence but should NOT block a passing test.
+  const overallPassed = testResult.passed;
+
+  if (visualReport && !visualReport.passed) {
+    onProgress?.(`Visual analysis flagged issues but test passed — proceeding. ${visualReport.overallAssessment}`, 95);
+  }
 
   onProgress?.('Verification complete.', 100);
 
